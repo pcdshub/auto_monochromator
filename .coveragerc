@@ -1,0 +1,11 @@
+[run]
+source =
+    auto_monochromator
+[report]
+omit =
+    #versioning
+    .*version.*
+    *_version.py
+    #tests
+    *test*
+    auto_monochromator/tests/*
