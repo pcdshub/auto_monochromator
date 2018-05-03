@@ -1,7 +1,8 @@
-pytest
 awscli
-flake8
-jupyter
 coverage
 coloredlogs
+flake8
+h5py
+jupyter
+pytest
 versioneer
