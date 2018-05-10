@@ -8,6 +8,7 @@ Toolset for automated mochromator tuning
 Requirements
 ------------
 
+Python>=3.6
 Describe the project requirements (i.e. Python version, packages and how to install them)
 
 Installation

@@ -4,5 +4,9 @@ coloredlogs
 flake8
 h5py
 jupyter
+numpy
+pandas
 pytest
+sphinx
+sphinx_rtd_theme
 versioneer
