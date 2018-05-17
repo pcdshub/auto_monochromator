@@ -65,18 +65,29 @@ def test_RapidTransmissionHist_push():
         minlen=3,
         bins=list(range(5))
     )
-    hits = np.array([1,1,1,2,3]), # bin that the hit falls into
-    power = np.array([12,8,1,4,5]), # power per hit
+    data = np.array([1,1,1,2,3]), # bin that the hit falls into
+    weights = np.array([12,8,1,4,5]), # power per hit
      
     rth.push(
-        hits, # bin that the hit falls into
-        power, # power per hit
+        data, # bin that the hit falls into
+        weights, # power per hit
     )
-    data == rth.data
 
-    assert np.all(hits == hits_data)
-    assert np.all(power == power_data)
+    assert np.all(data == rth.data)
+    assert np.all(weights == rth.weights)
 
 
 def test_RapidTransmissionHist_hist():
-    raise NotImplementedError
+    rth = RapidTransmissionHist(
+        maxlen=5,
+        minlen=3,
+        bins=list(range(5))
+    )
+    data = np.array([1,1,1,2,3]) # bin that the hit falls into
+    weights = np.array([3,8,1,2,4]) # power per hit
+    rth.push(data,weights)
+    inc, outgoing, hist, bins = rth.hist()
+    
+    #assert np.all(hist == np.array([0, 11, 5, 2]))
+    print(type(hist))
+    assert np.all(hist == np.array([0, 4, 2, 4]))

@@ -17,6 +17,7 @@ class BaseHist:
     def data(self):
         raise NotImplementedError
 
+
 class RapidHist(BaseHist):
     """
     Wrapper on np.histogram for rapidly regenerating histograms of dynamic data
@@ -66,7 +67,7 @@ class RapidHist(BaseHist):
         density : bool
             Follows np.histogram's rules for 'density' argument.
         """
-        if bins == None:
+        if bins is None:
             bins = self.bins
         if self.minlen is not None:
             if len(self._data) < self.minlen:
@@ -76,6 +77,7 @@ class RapidHist(BaseHist):
     @property
     def data(self):
         return np.array(self._data)
+
 
 class RapidWeightHist(RapidHist):
     def __init__(self, maxlen, minlen=None, bins=None):
@@ -103,7 +105,7 @@ class RapidWeightHist(RapidHist):
         return np.array(self._weights)
 
     def hist(self, bins=None, density=False):
-        if bins == None:
+        if bins is None:
             bins = self.bins
         if self.minlen is not None:
             if len(self._data) < self.minlen:
@@ -114,9 +116,6 @@ class RapidWeightHist(RapidHist):
             bins=bins, 
             density=density
         )
-
-        
-        
 
 
 class RapidTransmissionHist(BaseHist):
@@ -134,23 +133,65 @@ class RapidTransmissionHist(BaseHist):
             Set up default bins for the hist following np.histogram rules for
             'bins' argument.
         """
-        self._power_hist = RapidHist(
+        self._data = deque(maxlen=maxlen)
+        if bins is None:
+            self.bins = 10
+        else:
+            self.bins = bins
+        self.minlen = minlen
+
+        # Abbreviation for incedent energy
+        self.inc_hist = RapidHist(
             maxlen=maxlen,
             minlen=minlen,
             bins=bins
         )
-        self._data = deque(maxlen=maxlen)
-        self.bins = bins
-        self.minlen = minlen
+
+        self.outgoing_hist = RapidWeightHist(
+            maxlen=maxlen,
+            minlen=minlen,
+            bins=bins
+        )
     
-    def push(self, hits_data, power_data):
+    def push(self, data, weights):
         """
         Parameters
         ----------
         data : float, int or iterable
-            Append these elements to the data for this hist.
+            Append these elements to the data for this hist. Must have the same
+            length as weights.
+        
+        weights : float, int or iterable
+            Append these elements to the weights for this hist. Must have the
+            same length as data.
         """
-        if type(power_data) is list:
-            self._data.extend(power_data)
-        else:
-            self._data.append(power_data)
+        self.inc_hist.push(data)
+        self.outgoing_hist.push(data,weights)
+
+    @property
+    def data(self):
+        return self.inc_hist.data
+
+    @property
+    def weights(self):
+        return self.outgoing_hist.weights
+
+    def hist(self, bins=None, density=False):
+        if bins == None:
+            bins = self.bins
+        if self.minlen is not None:
+            if len(self.inc_hist._data) < self.minlen:
+                raise Exception("Insufficient data")
+
+        inc, bins = self.inc_hist.hist(bins=bins, density=density)
+        outgoing, _ = self.outgoing_hist.hist(bins=bins, density=density)
+        with np.errstate(divide='ignore',invalid='ignore'):
+            fractional_yield = np.nan_to_num(outgoing / inc)
+            #fractional_yield = outgoing / inc
+    
+        return inc, outgoing, fractional_yield, bins
+        
+
+        
+
+
