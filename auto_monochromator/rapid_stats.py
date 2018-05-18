@@ -37,7 +37,7 @@ class RapidHist(BaseHist):
             'bins' argument.
         """
         self._data = deque(maxlen=maxlen)
-        if bins == None:
+        if bins is None:
             self.bins = 10
         else:
             self.bins = bins
@@ -177,7 +177,7 @@ class RapidTransmissionHist(BaseHist):
         return self.outgoing_hist.weights
 
     def hist(self, bins=None, density=False):
-        if bins == None:
+        if bins is None:
             bins = self.bins
         if self.minlen is not None:
             if len(self.inc_hist._data) < self.minlen:

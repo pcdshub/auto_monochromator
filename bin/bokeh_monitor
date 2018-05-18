@@ -1,3 +1,3 @@
 from auto_monochromator import bokeh_monitor
 
-bokeh_monitor.go()
+bokeh_monitor.launch_server()
