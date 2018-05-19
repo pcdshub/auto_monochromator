@@ -11,6 +11,7 @@ from collections import deque
 from pcdsdevices import beam_stats
 from auto_monochromator.rapid_stats import RapidHist
 import numpy as np
+from tornado.ioloop import PeriodicCallback
 
 def modify_doc(doc,incident):
     
@@ -63,7 +64,10 @@ def modify_doc(doc,incident):
     doc.add_periodic_callback(partial(callback,k_obj=m,ds=incident,hist=hist),100)
     # put the button and plot in a layout and add to the document
     doc.add_root(column(d))
-    
+
+def random_print():
+    print(np.random.random(5))
+
 # Setting num_procs here means we can't touch the IOLoop before now, we must
 # let Server handle that. If you need to explicitly handle IOLoops then you
 # will need to use the lower level BaseServer class.
@@ -88,7 +92,10 @@ def launch_server():
 
 
     print('Opening Bokeh application on http://localhost:5006/')
-    
+    #server.io_loop.PeriodicCallback(random_print,500).start()
+    pcall = PeriodicCallback(random_print,100)
+    pcall.start()
+    print(type(server.io_loop))
     #server.io_loop.add_callback(server.show, "/")
     try:
         server.io_loop.start()
