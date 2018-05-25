@@ -4,8 +4,9 @@ from collections import deque
 
 def basic_event_builder(*args,**kwargs):
     """
-    Pass any number of data frames and return an event built pandas DataFrame.
-    Kwargs can be used to name the columns of the returned DataFrame.
+    Pass any number of pandas Series and return an event built pandas
+    DataFrame.  Kwargs can be used to name the columns of the returned
+    DataFrame.
     """
     data_table = dict()
     [data_table.setdefault(col,args[col]) for col in range(len(args))]
