@@ -86,7 +86,11 @@ def launch_server():
 
     def append_to_data_block(*args,**kwargs):
         kwargs['inc_data_block'].append(kwargs['value'])
-    
+   
+
+
+    # Apply one of these sections for each PV being watched:
+
     stats.accel_ev.subscribe(
         partial(append_to_data_block,inc_data_block=inc_data_block)
     )
@@ -99,14 +103,17 @@ def launch_server():
 
     hist = RapidHist(
         maxlen=1000,
-        bins = np.arange(975,1025,.5),
+        bins = np.arange(9450,9550,1),
         #bins = np.arange(-.1,.1,.005),
     )
     
     m = Carrier()
 
     server = Server(
-        {'/': partial(modify_doc,plot_data=m)},
+        {
+            '/': partial(modify_doc,plot_data=m),
+        },
+        allow_websocket_origin=["localhost:5006"],
         num_procs=1
    )
     server.start()
