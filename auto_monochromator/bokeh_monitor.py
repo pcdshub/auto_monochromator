@@ -17,11 +17,6 @@ import time
 import pandas as pd
 
 def modify_doc(doc,plot_data,y_range=(-50,500)):
-    
-    #d = figure(x_range=(0, 100), y_range=(0, 100))
-    #d = figure()
-    
-    #d = figure(x_range=(510, 550),y_range=(-50,500))
     d = figure(y_range=y_range)
     k = d.quad(
         top=[],
@@ -37,13 +32,6 @@ def modify_doc(doc,plot_data,y_range=(-50,500)):
     
     m = s()
     m.i = 0
-    '''
-    hist = RapidHist(
-        # 1000 just seems to be the magic number for the accel_ev 
-        maxlen=1000,
-        bins = np.arange(6850,6950,.5)
-    )
-    '''
 
     def callback(k_obj, hist_data):
         k_obj.i += 1
@@ -114,43 +102,57 @@ def launch_server():
         kwargs['inc_time'].append(kwargs['timestamp'])
    
 
-    #########################################################
-    # Apply one of these sections for each PV being watched:#
-    #########################################################
-    # Acquire data nd plot the accel_ev
+    ###############################################################
+    # Apply one of these sections for each graph being being made #
+    ###############################################################
+    
+    # Acquire EPICS data and generate plot for Accelerator reported energy
+    # Store inbound data in this deque
     accel_ev_data_block = deque(maxlen=1000)
+    # Attach this method to the PV to aggregate data in the deque
     stats.accel_ev.subscribe(
         partial(append_to_data_block, inc_data_block=accel_ev_data_block)
     )
+    # Define the histogram to be plotted
     accel_ev_hist = RapidHist(
         maxlen=1000,
         bins = np.arange(9450,9550,1),
     )
+    # Create object for sending histogram data to draw method
     accel_ev_carry = Carrier()
+    # Schedule the data-acquiring and regeneration of the histogram
     accel_ev_call = PeriodicCallback(
-        partial(handle_data, ds=accel_ev_data_block, hist=accel_ev_hist,out=accel_ev_carry),
+        partial(
+            handle_data, 
+            ds=accel_ev_data_block, 
+            hist=accel_ev_hist,
+            out=accel_ev_carry
+        ),
         500
     )
 
-
-
+    # Acquire EPICS data and generate plot for Transmission plots
     maxlen=1000
+    # Store inbound data in this deque
     t_accel_db = deque(maxlen=maxlen)
     t_accel_db_time = deque(maxlen=maxlen)
     t_gmd_db = deque(maxlen=maxlen)
     t_gmd_db_time = deque(maxlen=maxlen)
+    # Attach this method to the PV to aggregate data in the deque
     stats.accel_ev.subscribe(
         partial(append_to_data_block_t,inc_value=t_accel_db,inc_time=t_accel_db_time)
     )
     stats.xpp_ipm2.subscribe(
         partial(append_to_data_block_t,inc_value=t_gmd_db,inc_time=t_gmd_db_time)
     )
+    # Define the histogram to be plotted
     t_hist = RapidTransmissionHist(
         maxlen=1000,
         bins = np.arange(9450,9550,1),
     )
+    # Create object for sending histogram data to draw method
     t_carry = Carrier()
-    
+    # Schedule the data-acquiring and regeneration of the histogram
     t_call = PeriodicCallback(
         partial(
             handle_t_data,
@@ -164,15 +166,13 @@ def launch_server():
     )
 
     
-    
-    
     server = Server(
         {
             '/': partial(modify_doc,plot_data=accel_ev_carry),
             '/b': partial(modify_doc,plot_data=t_carry,y_range=(-.2,.2)),
         },
         allow_websocket_origin=["localhost:5006"],
-        # Changing this while using specific tornado loops breaks things 
+        # num_procs must be 1 for tornado loops to work correctly 
         num_procs=1,
     )
     server.start()
