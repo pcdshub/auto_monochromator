@@ -1,3 +1,5 @@
 from auto_monochromator import bokeh_monitor
-
+import logging 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 bokeh_monitor.launch_server()

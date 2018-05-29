@@ -15,10 +15,19 @@ import numpy as np
 from tornado.ioloop import PeriodicCallback
 import time
 import pandas as pd
+import logging
+# logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
-def modify_doc(doc,plot_data,y_range=(-50,500)):
-    d = figure(y_range=y_range)
-    k = d.quad(
+def single_plot(doc,plot_data,y_range=(-50,500)):
+    """
+    Generate/update single page w/ single histogram 
+    """
+    # Each graph begins with a figure
+    # fig = figure(y_range=y_range)
+    fig = figure()
+    # Add the histogram to this graph
+    hist_plot = fig.quad(
         top=[],
         bottom=[],
         left=[],
@@ -26,59 +35,81 @@ def modify_doc(doc,plot_data,y_range=(-50,500)):
         fill_color="#036564",
         line_color="#033649"
     )
-    ks = k.data_source
-    class s:
+
+    hist_data_source = hist_plot.data_source
+
+    class stateful_data_container:
         pass
     
-    m = s()
-    m.i = 0
+    counter = stateful_data_container()
+    counter.i = 0
 
-    def callback(k_obj, hist_data):
-        k_obj.i += 1
-        print(k_obj.i)
-        nd = dict()
-        nd['top'] = hist_data.hs
-        nd['bottom'] = np.zeros(len(hist_data.hs))
-        nd['left'] = hist_data.bins[:-1]
-        nd['right'] = hist_data.bins[1:]
-        ks.data = nd
+    def callback(count_obj, hist_data):
+        count_obj.i += 1
+        new_hist_data = dict()
+        new_hist_data['top'] = hist_data.hs
+        new_hist_data['bottom'] = np.zeros(len(hist_data.hs))
+        new_hist_data['left'] = hist_data.bins[:-1]
+        new_hist_data['right'] = hist_data.bins[1:]
+        # Push the data to the plot 
+        hist_data_source.data = new_hist_data
     
-    
-    # add a button widget and configure with the call back
-    # button = Button(label="Press Me")
-    # button.on_click(callback)
     doc.add_periodic_callback(
-        partial(callback,k_obj = m,hist_data=plot_data),
+        partial(callback, count_obj=counter, hist_data=plot_data),
         500
     )
-    # put the button and plot in a layout and add to the document
-    doc.add_root(column(d))
 
-def handle_data(ds, hist, out):
+    # place the plot in the page
+    # doc.add_root(column([fig],sizing_mode='stretch_both'))
+    return fig
+
+
+def single_plot_mgr(doc,plot_data,y_range=(-50,500)):
+    fig = single_plot(doc,plot_data,y_range)
+    doc.add_root(column([fig],sizing_mode='stretch_both'))
+
+
+def double_plot_mgr(doc, inc_plot_data, ts_plot_data, y_range=(-50,500)):
+    inc_fig = single_plot(doc, inc_plot_data,y_range)
+    ts_fig = single_plot(doc,ts_plot_data,(-.2,.2))
+    ts_fig.x_range = inc_fig.x_range
+    doc.add_root(column([inc_fig,ts_fig],sizing_mode='stretch_both'))
+
+
+def double_plot(doc,inc_plot, out_plot, y_range=(-50,500)):
+    pass
+
+
+class plot_package:
+    def __init__(self, maxlen, bins, title='', y_range=None):
+        pass 
+
+
+def produce_single_hist(data_source, hist, out):
     """
     Pull Data from the data source (ds), clear the data source, push the data
     into the hist, and generate the hist.
     """
-    print('recalc plot\t', len(ds),'\t', time.ctime(),end='\t')
-    hist.push(ds)
-    print(len(hist._data))
-    ds.clear()
+    logging.debug('produce_single_hist '+str(len(data_source)))
+    hist.push(data_source)
+    data_source.clear()
     out.hs, out.bins = hist.hist()
 
-def handle_t_data(ds, dst, dsw, dswt, hist, out):
+def produce_ts_hist(ds_inc, ds_inc_t, ds_out, ds_out_t, hist, out):
     """
     Pull Data from the data source (ds), clear the data source, push the data
     into the hist, and generate the hist.
     """
-    print(len(ds),len(dst),len(dsw),len(dswt),sep='\t')
-    data = pd.Series(ds,index=dst)
-    weights = pd.Series(dsw,index=dswt)
+    logger.debug('produce_ts_hist {} {} {} {} {}'.format(time.ctime(),
+                len(ds_inc), len(ds_inc_t), len(ds_out), len(ds_out_t)))
+    data = pd.Series(ds_inc,index=ds_inc_t)
+    weights = pd.Series(ds_out,index=ds_out_t)
     zipped = basic_event_builder(data=data,weights=weights)
     hist.push(zipped['data'],zipped['weights'])
-    ds.clear()
-    dst.clear()
-    dsw.clear()
-    dswt.clear()
+    ds_inc.clear()
+    ds_inc_t.clear()
+    ds_out.clear()
+    ds_out_t.clear()
     _, _, out.hs, out.bins = hist.hist()
     out.hs = out.hs * 1.0/sum(out.hs)
 
@@ -86,21 +117,20 @@ class Carrier:
     def __init__(self):
         self.hs = None
         self.bins = None
+    
+def append_to_data_block(*args,**kwargs):
+    kwargs['inc_data_block'].append(kwargs['value'])
+
+def append_to_data_block_t(*args,**kwargs):
+    kwargs['inc_value'].append(kwargs['value'])
+    kwargs['inc_time'].append(kwargs['timestamp'])
 
 # Setting num_procs here means we can't touch the IOLoop before now, we must
 # let Server handle that. If you need to explicitly handle IOLoops then you
 # will need to use the lower level BaseServer class.
-def launch_server():
+def launch_server(maxlen=1000, bins=np.arange(9450,9550,1)):
 
     stats = beam_stats.BeamStats()
-
-    def append_to_data_block(*args,**kwargs):
-        kwargs['inc_data_block'].append(kwargs['value'])
-    
-    def append_to_data_block_t(*args,**kwargs):
-        kwargs['inc_value'].append(kwargs['value'])
-        kwargs['inc_time'].append(kwargs['timestamp'])
-   
 
     ###############################################################
     # Apply one of these sections for each graph being being made #
@@ -108,23 +138,23 @@ def launch_server():
     
     # Acquire EPICS data and generate plot for Accelerator reported energy
     # Store inbound data in this deque
-    accel_ev_data_block = deque(maxlen=1000)
+    accel_ev_data_block = deque(maxlen=maxlen)
     # Attach this method to the PV to aggregate data in the deque
     stats.accel_ev.subscribe(
         partial(append_to_data_block, inc_data_block=accel_ev_data_block)
     )
     # Define the histogram to be plotted
     accel_ev_hist = RapidHist(
-        maxlen=1000,
-        bins = np.arange(9450,9550,1),
+        maxlen=maxlen,
+        bins = bins,
     )
     # Create object for sending histogram data to draw method
     accel_ev_carry = Carrier()
     # Schedule the data-acquiring and regeneration of the histogram
     accel_ev_call = PeriodicCallback(
         partial(
-            handle_data, 
-            ds=accel_ev_data_block, 
+            produce_single_hist, 
+            data_source=accel_ev_data_block, 
             hist=accel_ev_hist,
             out=accel_ev_carry
         ),
@@ -132,7 +162,6 @@ def launch_server():
     )
 
     # Acquire EPICS data and generate plot for Transmission plots
-    maxlen=1000
     # Store inbound data in this deque
     t_accel_db = deque(maxlen=maxlen)
     t_accel_db_time = deque(maxlen=maxlen)
@@ -147,29 +176,40 @@ def launch_server():
     )
     # Define the histogram to be plotted
     t_hist = RapidTransmissionHist(
-        maxlen=1000,
-        bins = np.arange(9450,9550,1),
+        maxlen=maxlen,
+        bins = bins,
     )
     # Create object for sending histogram data to draw method
     t_carry = Carrier()
     # Schedule the data-acquiring and regeneration of the histogram
     t_call = PeriodicCallback(
         partial(
-            handle_t_data,
-            ds=t_accel_db,
-            dst=t_accel_db_time,
-            dsw=t_gmd_db, 
-            dswt=t_gmd_db_time,
+            produce_ts_hist,
+            ds_inc=t_accel_db,
+            ds_inc_t=t_accel_db_time,
+            ds_out=t_gmd_db, 
+            ds_out_t=t_gmd_db_time,
             hist=t_hist,
             out=t_carry),
         500
     )
-
     
     server = Server(
         {
-            '/': partial(modify_doc,plot_data=accel_ev_carry),
-            '/b': partial(modify_doc,plot_data=t_carry,y_range=(-.2,.2)),
+            '/incident': partial(
+                single_plot_mgr,
+                plot_data=accel_ev_carry
+            ),
+            '/transmission': partial(
+                single_plot_mgr,
+                plot_data=t_carry,
+                y_range=(-.2,.2)
+            ),
+            '/both': partial(
+                double_plot_mgr,
+                inc_plot_data=accel_ev_carry,
+                ts_plot_data=t_carry,
+            ),
         },
         allow_websocket_origin=["localhost:5006"],
         # num_procs must be 1 for tornado loops to work correctly 
