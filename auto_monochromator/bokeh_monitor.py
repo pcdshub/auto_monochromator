@@ -128,9 +128,9 @@ def append_to_data_block_t(*args,**kwargs):
 # Setting num_procs here means we can't touch the IOLoop before now, we must
 # let Server handle that. If you need to explicitly handle IOLoops then you
 # will need to use the lower level BaseServer class.
-def launch_server(maxlen=1000, bins=np.arange(9450,9550,1)):
+def launch_server(in_ophyd,out_ophyd,port=5006,maxlen=1000, bins=np.arange(9450,9550,1)):
 
-    stats = beam_stats.BeamStats()
+    # stats = beam_stats.BeamStats()
 
     ###############################################################
     # Apply one of these sections for each graph being being made #
@@ -140,7 +140,9 @@ def launch_server(maxlen=1000, bins=np.arange(9450,9550,1)):
     # Store inbound data in this deque
     accel_ev_data_block = deque(maxlen=maxlen)
     # Attach this method to the PV to aggregate data in the deque
-    stats.accel_ev.subscribe(
+    
+    #stats.accel_ev.subscribe(
+    in_ophyd.subscribe(
         partial(append_to_data_block, inc_data_block=accel_ev_data_block)
     )
     # Define the histogram to be plotted
@@ -168,10 +170,15 @@ def launch_server(maxlen=1000, bins=np.arange(9450,9550,1)):
     t_gmd_db = deque(maxlen=maxlen)
     t_gmd_db_time = deque(maxlen=maxlen)
     # Attach this method to the PV to aggregate data in the deque
-    stats.accel_ev.subscribe(
+    
+    
+    #stats.accel_ev.subscribe(
+    in_ophyd.subscribe(
         partial(append_to_data_block_t,inc_value=t_accel_db,inc_time=t_accel_db_time)
     )
-    stats.xpp_ipm2.subscribe(
+    #stats.xpp_ipm2.subscribe(
+    
+    out_ophyd.subscribe(
         partial(append_to_data_block_t,inc_value=t_gmd_db,inc_time=t_gmd_db_time)
     )
     # Define the histogram to be plotted
@@ -211,7 +218,7 @@ def launch_server(maxlen=1000, bins=np.arange(9450,9550,1)):
                 ts_plot_data=t_carry,
             ),
         },
-        allow_websocket_origin=["localhost:5006"],
+        allow_websocket_origin=["localhost:{}".format(port)],
         # num_procs must be 1 for tornado loops to work correctly 
         num_procs=1,
     )
