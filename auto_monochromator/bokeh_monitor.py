@@ -139,12 +139,48 @@ def append_to_data_block_t(*args,**kwargs):
 # will need to use the lower level BaseServer class.
 def launch_server(in_ophyd,out_ophyd,port=5006,maxlen=1000,
             bins=np.arange(9450,9550,1), public=False):
+    '''
+    Launch a bokeh_server providing the histograms of incident and transmitted
+    energy in a web page.
 
-    # stats = beam_stats.BeamStats()
 
-    ###############################################################
-    # Apply one of these sections for each graph being being made #
-    ###############################################################
+    Parameters
+    ----------
+    in_ophyd : ophyd.device.Component
+        This is the component from an ophyd object that provides the incident
+        frequency. This component produces the value of a single PV. 
+
+    out_ophyd : ophyd.device.Component
+        This is the component from an ophyd object that provides a measurement
+        of the energy of each pulse after the transmission medium. This
+        component produces the value of a single PV.
+
+    port : int
+        Provide the port to broadcast this server from.
+
+    maxlen : int 
+        The histograms in this calculation are computed by a rolling dataset of
+        fixed size. As new data arrives, older values are removed. Maxlen
+        specifies the size of this rolling dataset. Pick this value after
+        taking into consideration the data output rate of the in_ophyd and
+        out_ophyd PVs. 
+
+    bins : int, sequence of scalars
+        This specifies the binning scheme of the histograms. This argument
+        behaves much like the `numpy.histogram's bins
+        <https://docs.scipy.org/doc/numpy/reference/generated/numpy.histogram.html>`_
+        argument. A single value can be picked and the method can attempt to
+        guess the range or the regions of each bin can be specified precisely
+        with a sequential object.
+
+    public : bool, optional
+        By default, bokeh servers do not allow connections from any ip address
+        except the localhost. Enabling this option allows bokeh to server the
+        plots on one machine such that they can be viewed from a web-browser on
+        another machine.
+
+
+    '''
     
     # Acquire EPICS umata and generate plot for Accelerator reported energy
     # Store inbound data in this deque
