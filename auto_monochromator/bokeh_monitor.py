@@ -15,6 +15,7 @@ import numpy as np
 from tornado.ioloop import PeriodicCallback
 import time
 import pandas as pd
+import socket
 import logging
 # logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -136,7 +137,8 @@ def append_to_data_block_t(*args,**kwargs):
 # Setting num_procs here means we can't touch the IOLoop before now, we must
 # let Server handle that. If you need to explicitly handle IOLoops then you
 # will need to use the lower level BaseServer class.
-def launch_server(in_ophyd,out_ophyd,port=5006,maxlen=1000, bins=np.arange(9450,9550,1)):
+def launch_server(in_ophyd,out_ophyd,port=5006,maxlen=1000,
+            bins=np.arange(9450,9550,1), public=False):
 
     # stats = beam_stats.BeamStats()
 
@@ -208,7 +210,15 @@ def launch_server(in_ophyd,out_ophyd,port=5006,maxlen=1000, bins=np.arange(9450,
             out=t_carry),
         500
     )
-    
+
+    origins = ["localhost:{}".format(port)]
+    if public:
+        origins.append('{}:{}'.format(
+            socket.gethostbyname(socket.gethostname()),
+            port,
+        ))
+
+
     server = Server(
         {
             '/incident': partial(
@@ -226,14 +236,16 @@ def launch_server(in_ophyd,out_ophyd,port=5006,maxlen=1000, bins=np.arange(9450,
                 ts_plot_data=t_carry,
             ),
         },
-        allow_websocket_origin=["localhost:{}".format(port)],
+        allow_websocket_origin=origins,
         # num_procs must be 1 for tornado loops to work correctly 
         num_procs=1,
     )
     server.start()
 
+    print('Opening Bokeh application on:')
+    for entry in origins:
+        print('\thttp://{}/'.format(entry))
 
-    print('Opening Bokeh application on http://localhost:5006/')
     #server.io_loop.PeriodicCallback(random_print,500).start()
     
     accel_ev_call.start()
