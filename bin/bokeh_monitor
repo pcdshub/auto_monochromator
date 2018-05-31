@@ -33,10 +33,9 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-
 stats = beam_stats.BeamStats()
 bokeh_monitor.launch_server(
-    in_ophyd = stats.accel_ev,
+    in_ophyd = stats.ev,
     out_ophyd = stats.xpp_ipm2,
     port = args.port,
     bins=np.arange(args.lower_limit,args.upper_limit,args.bins),
