@@ -8,4 +8,5 @@ setup(name='auto_monochromator',
       author='SLAC National Accelerator Laboratories',
       packages=find_packages(),
       description='Toolset for automated mochromator tuning',
+      scripts=['bin/bokeh_monitor'],
       )

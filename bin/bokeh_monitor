@@ -1,0 +1,48 @@
+from auto_monochromator import bokeh_monitor
+import numpy as np
+from pcdsdevices import beam_stats
+import argparse
+import logging 
+logging.basicConfig(level=logging.WARNING)
+logger = logging.getLogger(__name__)
+
+description = "Example usage of the real-time histogram features"
+
+parser = argparse.ArgumentParser(
+    description = description,
+    formatter_class = argparse.RawTextHelpFormatter
+)
+
+parser.add_argument(
+    '-p', '--port', metavar='PORT',type=int,
+    help="Port to create server on", default=5006
+)
+parser.add_argument(
+    '-b', '--bins', metavar='BINS', type=int,
+    help="Specify the width of the bins for the histograms"
+)
+parser.add_argument(
+    '-l', '--lower_limit', metavar='LOWER_LIMIT', type=float,
+    help="The lower limit of the range for the histogram"
+)
+parser.add_argument(
+    '-u', '--upper_limit', metavar='UPPER_LIMIT', type=float,
+    help="The upper limit of the range for the histogram"
+)
+parser.add_argument(
+    '-o', '--open', dest='public', action='store_true',
+    help='Allow server to be reached from other machines by IP address'
+)
+
+if __name__ == '__main__':
+    args = parser.parse_args()
+    
+    stats = beam_stats.BeamStats()
+    print(args) 
+    bokeh_monitor.launch_server(
+        in_ophyd = stats.ev,
+        out_ophyd = stats.xpp_ipm2,
+        port = args.port,
+        bins=np.arange(args.lower_limit,args.upper_limit,args.bins),
+        public=args.public,
+    )

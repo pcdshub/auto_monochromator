@@ -1,4 +1,5 @@
 awscli
+bokeh
 coverage
 coloredlogs
 flake8
