@@ -6,6 +6,7 @@ import logging
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
+np.seterr(divide='raise')
 description = "Example usage of the real-time histogram features"
 
 parser = argparse.ArgumentParser(

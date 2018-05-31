@@ -19,6 +19,7 @@ import logging
 # logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
 def single_plot(doc,plot_data,y_range=(-50,500)):
     """
     Generate/update single page w/ single histogram 
@@ -111,7 +112,14 @@ def produce_ts_hist(ds_inc, ds_inc_t, ds_out, ds_out_t, hist, out):
     ds_out.clear()
     ds_out_t.clear()
     _, _, out.hs, out.bins = hist.hist()
-    out.hs = out.hs * 1.0/sum(out.hs)
+
+    # using try except doesn't because pandas prevents numpy from throwing
+    # errors (it even overwrites np.seterr). For more details, see 
+    # https://github.com/pandas-dev/pandas/issues/12464 
+    if np.all(out.hs == 0):
+        out.hs = np.zeros(len(out.bins)-1)
+    
+
 
 class Carrier:
     def __init__(self):
@@ -136,7 +144,7 @@ def launch_server(in_ophyd,out_ophyd,port=5006,maxlen=1000, bins=np.arange(9450,
     # Apply one of these sections for each graph being being made #
     ###############################################################
     
-    # Acquire EPICS data and generate plot for Accelerator reported energy
+    # Acquire EPICS umata and generate plot for Accelerator reported energy
     # Store inbound data in this deque
     accel_ev_data_block = deque(maxlen=maxlen)
     # Attach this method to the PV to aggregate data in the deque
